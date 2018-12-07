@@ -57,14 +57,12 @@ class Sessions(common.Sessions):
         self.lock_max_wait_time = lock_max_wait_time
         self.memcache = memcache_service
         self.min_compress_len = min_compress_len
+        self.reset = reset
 
-        if reset:
-            self.flush_all()
+        self.version = self.generate_version_id()
 
-    def flush_all(self):
-        """Delete all the contents in the memcached server
-        """
-        self.memcache.flush_all()
+    def generate_version_id(self):
+        return self.generate_id()
 
     def check_concurrence(self, multi_processes, multi_threads):
         return
@@ -86,7 +84,7 @@ class Sessions(common.Sessions):
         """
         self.memcache.set_multi({
             'state': 0,
-            'sess': (secure_id, None),
+            'sess': (self.version, secure_id, None),
             '00000': {}
         }, self.ttl, KEY_PREFIX % session_id, self.min_compress_len)
 
@@ -120,8 +118,11 @@ class Sessions(common.Sessions):
             raise ExpirationError()
 
         last_state_id = session['state']
-        secure_token, session_data = session['sess']
+        version, secure_token, session_data = session['sess']
         state_data = session[state_id]
+
+        if self.reset and (version != self.version):
+            raise ExpirationError()
 
         return last_state_id, secure_token, session_data, state_data
 
@@ -140,6 +141,6 @@ class Sessions(common.Sessions):
             self.memcache.incr((KEY_PREFIX + 'state') % session_id)
 
         self.memcache.set_multi({
-            'sess': (secure_token, session_data),
+            'sess': (self.version, secure_token, session_data),
             '%05d' % state_id: state_data
         }, self.ttl, KEY_PREFIX % session_id, self.min_compress_len)
