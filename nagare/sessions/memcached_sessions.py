@@ -61,30 +61,36 @@ class Sessions(common.Sessions):
         if reset:
             self.flush_all()
 
-    def check_concurrence(self, multi_processes, multi_threads):
-        return
-
     def flush_all(self):
         """Delete all the contents in the memcached server
         """
         self.memcache.flush_all()
 
+    def check_concurrence(self, multi_processes, multi_threads):
+        return
+
+    def check_session_id(self, session_id):
+        return False
+
     def get_lock(self, session_id):
         return self.memcache.get_lock(session_id, self.lock_ttl, self.lock_poll_time, self.lock_max_wait_time)
 
-    def create(self, session_id, secure_id, lock):
+    def _create(self, session_id, secure_id):
         """Create a new session
 
-        In:
-          - ``session_id`` -- id of the session
-          - ``secure_id`` -- the secure number associated to the session
-          - ``lock`` -- the lock of the session
+        Return:
+          - id of the session
+          - id of the state
+          - secure token associated to the session
+          - session lock
         """
         self.memcache.set_multi({
             'state': 0,
             'sess': (secure_id, None),
             '00000': {}
         }, self.ttl, KEY_PREFIX % session_id, self.min_compress_len)
+
+        return session_id, 0, secure_id, self.get_lock(session_id)
 
     def delete(self, session_id):
         """Delete a session
@@ -94,7 +100,7 @@ class Sessions(common.Sessions):
         """
         self.memcache.delete((KEY_PREFIX + 'sess') % session_id)
 
-    def fetch_state(self, session_id, state_id):
+    def _fetch(self, session_id, state_id):
         """Retrieve a state with its associated objects graph
 
         In:
@@ -114,12 +120,12 @@ class Sessions(common.Sessions):
             raise ExpirationError()
 
         last_state_id = session['state']
-        secure_id, session_data = session['sess']
+        secure_token, session_data = session['sess']
         state_data = session[state_id]
 
-        return last_state_id, secure_id, session_data, state_data
+        return last_state_id, secure_token, session_data, state_data
 
-    def store_state(self, session_id, state_id, secure_id, use_same_state, session_data, state_data):
+    def _store(self, session_id, state_id, secure_token, use_same_state, session_data, state_data):
         """Store a state and its associated objects graph
 
         In:
@@ -134,6 +140,6 @@ class Sessions(common.Sessions):
             self.memcache.incr((KEY_PREFIX + 'state') % session_id)
 
         self.memcache.set_multi({
-            'sess': (secure_id, session_data),
+            'sess': (secure_token, session_data),
             '%05d' % state_id: state_data
         }, self.ttl, KEY_PREFIX % session_id, self.min_compress_len)
