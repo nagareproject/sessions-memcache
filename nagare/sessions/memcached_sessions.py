@@ -85,7 +85,7 @@ class Sessions(common.Sessions):
         self.memcache.set_multi({
             'state': 0,
             'sess': (self.version, secure_id, None),
-            '00000': {}
+            '00000': ''
         }, self.ttl, KEY_PREFIX % session_id, self.min_compress_len)
 
         return session_id, 0, secure_id, self.get_lock(session_id)

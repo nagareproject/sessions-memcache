@@ -29,7 +29,11 @@ setup(
     zip_safe=False,
     setup_requires=['setuptools_scm'],
     use_scm_version=True,
-    install_requires=['python-memcached', 'nagare-services-memcache', 'nagare'],
+    install_requires=[
+        'python-memcached',
+        'nagare-services-memcache',
+        'nagare-server-mvc'
+    ],
     entry_points='''
         [nagare.sessions]
         memcache = nagare.sessions.memcached_sessions:Sessions
