@@ -59,6 +59,9 @@ class Sessions(common.Sessions):
         self.min_compress_len = min_compress_len
         self.reset = reset
 
+        self.handle_reload()
+
+    def handle_reload(self):
         self.version = self.generate_version_id()
 
     def generate_version_id(self):
