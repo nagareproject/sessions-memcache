@@ -23,7 +23,6 @@ class Sessions(common.Sessions):
         lock_poll_time='float(default=0.1)',
         lock_max_wait_time='float(default=5.)',
         min_compress_len='integer(default=0)',
-        reset='boolean(default=True)',
         serializer='string(default="nagare.sessions.serializer:Pickle")'
     )
 
@@ -32,7 +31,7 @@ class Sessions(common.Sessions):
             name, dist,
             ttl=0,
             lock_ttl=0, lock_poll_time=0.1, lock_max_wait_time=5,
-            min_compress_len=0, reset=False,
+            min_compress_len=0,
             serialize=None,
             memcache_service=None,
             services_service=None,
@@ -46,7 +45,6 @@ class Sessions(common.Sessions):
           - ``lock_poll_time`` -- wait time between two lock acquisition tries, in seconds
           - ``lock_max_wait_time`` -- maximum time to wait to acquire the lock, in seconds
           - ``min_compress_len`` -- data longer than this value are sent compressed
-          - ``reset`` -- do a reset of all the sessions on startup ?
           - ``serializer`` -- serializer / deserializer of the states
         """
         services_service(super(Sessions, self).__init__, name, dist, **config)
@@ -57,15 +55,14 @@ class Sessions(common.Sessions):
         self.lock_max_wait_time = lock_max_wait_time
         self.memcache = memcache_service
         self.min_compress_len = min_compress_len
-        self.reset = reset
 
-        self.handle_reload()
-
-    def handle_reload(self):
-        self.version = self.generate_version_id()
+        self.reload()
 
     def generate_version_id(self):
         return self.generate_id()
+
+    def reload(self):
+        self.version = self.generate_version_id()
 
     def check_concurrence(self, multi_processes, multi_threads):
         return
@@ -124,7 +121,7 @@ class Sessions(common.Sessions):
         version, secure_token, session_data = session['sess']
         state_data = session[state_id]
 
-        if self.reset and (version != self.version):
+        if version != self.version:
             raise ExpirationError()
 
         return last_state_id, secure_token, session_data, state_data
