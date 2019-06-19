@@ -65,7 +65,7 @@ class Sessions(common.Sessions):
         self.version = self.generate_version_id()
 
     def check_concurrence(self, multi_processes, multi_threads):
-        return
+        pass
 
     def check_session_id(self, session_id):
         return False

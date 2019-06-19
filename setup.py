@@ -32,7 +32,8 @@ setup(
     install_requires=[
         'python-memcached',
         'nagare-services-memcache',
-        'nagare-server-mvc'
+        'nagare-server-http',
+        'nagare-services-sessions'
     ],
     entry_points='''
         [nagare.sessions]
