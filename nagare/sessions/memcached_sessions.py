@@ -8,7 +8,7 @@
 # --
 
 from nagare.sessions import common
-from nagare.sessions.exceptions import ExpirationError
+from nagare.sessions.exceptions import StorageError, ExpirationError
 
 KEY_PREFIX = 'nagare_%d_'
 
@@ -23,6 +23,7 @@ class Sessions(common.Sessions):
         lock_poll_time='float(default=0.1)',
         lock_max_wait_time='float(default=5.)',
         min_compress_len='integer(default=0)',
+        noreply='boolean(default=False)',
         serializer='string(default="nagare.sessions.serializer:Pickle")'
     )
 
@@ -31,10 +32,9 @@ class Sessions(common.Sessions):
             name, dist,
             ttl=0,
             lock_ttl=0, lock_poll_time=0.1, lock_max_wait_time=5,
-            min_compress_len=0,
+            min_compress_len=0, noreply=False,
             serialize=None,
-            memcache_service=None,
-            services_service=None,
+            memcache_service=None, services_service=None,
             **config
     ):
         """Initialization
@@ -55,6 +55,7 @@ class Sessions(common.Sessions):
         self.lock_max_wait_time = lock_max_wait_time
         self.memcache = memcache_service
         self.min_compress_len = min_compress_len
+        self.noreply = noreply
 
         self.reload()
 
@@ -71,7 +72,11 @@ class Sessions(common.Sessions):
         return False
 
     def get_lock(self, session_id):
-        return self.memcache.get_lock(session_id, self.lock_ttl, self.lock_poll_time, self.lock_max_wait_time)
+        return self.memcache.get_lock(
+            session_id,
+            self.lock_ttl, self.lock_poll_time, self.lock_max_wait_time,
+            self.noreply
+        )
 
     def _create(self, session_id, secure_id):
         """Create a new session
@@ -82,11 +87,12 @@ class Sessions(common.Sessions):
           - secure token associated to the session
           - session lock
         """
-        self.memcache.set_multi({
+        if self.memcache.set_multi({
             'state': 0,
             'sess': (self.version, secure_id, None),
-            '00000': ''
-        }, self.ttl, KEY_PREFIX % session_id, self.min_compress_len)
+            '00000': '',
+        }, self.ttl, KEY_PREFIX % session_id, self.min_compress_len, self.noreply):
+            raise StorageError('Memcache create session {}'.format(session_id))
 
         return session_id, 0, secure_id, self.get_lock(session_id)
 
@@ -96,7 +102,8 @@ class Sessions(common.Sessions):
         In:
           - ``session_id`` -- id of the session to delete
         """
-        self.memcache.delete((KEY_PREFIX + 'sess') % session_id)
+        if self.memcache.delete((KEY_PREFIX + 'sess') % session_id, self.noreply):
+            raise StorageError('Memcache delete session {}'.format(session_id))
 
     def _fetch(self, session_id, state_id):
         """Retrieve a state with its associated objects graph
@@ -138,9 +145,11 @@ class Sessions(common.Sessions):
           - ``state_data`` -- data to keep into the state
         """
         if not use_same_state:
-            self.memcache.incr((KEY_PREFIX + 'state') % session_id)
+            if self.memcache.incr((KEY_PREFIX + 'state') % session_id, noreply=self.noreply) is None:
+                raise StorageError('Memcache store session {}, state {}'.format(session_id, state_id))
 
-        self.memcache.set_multi({
+        if self.memcache.set_multi({
             'sess': (self.version, secure_token, session_data),
             '%05d' % state_id: state_data
-        }, self.ttl, KEY_PREFIX % session_id, self.min_compress_len)
+        }, self.ttl, KEY_PREFIX % session_id, self.min_compress_len, self.noreply):
+            raise StorageError('Memcache store session {}, state {}'.format(session_id, state_id))
