@@ -1,5 +1,5 @@
 # --
-# Copyright (c) 2008-2019 Net-ng.
+# Copyright (c) 2008-2020 Net-ng.
 # All rights reserved.
 #
 # This software is licensed under the BSD License, as described in
@@ -47,7 +47,14 @@ class Sessions(common.Sessions):
           - ``min_compress_len`` -- data longer than this value are sent compressed
           - ``serializer`` -- serializer / deserializer of the states
         """
-        services_service(super(Sessions, self).__init__, name, dist, **config)
+        services_service(
+            super(Sessions, self).__init__, name, dist,
+            ttl=ttl,
+            lock_ttl=lock_ttl, lock_poll_time=lock_poll_time, lock_max_wait_time=lock_max_wait_time,
+            min_compress_len=min_compress_len, noreply=noreply,
+            serialize=serialize,
+            **config
+        )
 
         self.ttl = ttl
         self.lock_ttl = lock_ttl
