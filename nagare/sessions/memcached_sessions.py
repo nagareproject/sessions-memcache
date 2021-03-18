@@ -99,7 +99,7 @@ class Sessions(common.Sessions):
             'sess': (self.version, secure_id, None),
             '00000': '',
         }, self.ttl, KEY_PREFIX % session_id, self.min_compress_len, self.noreply):
-            raise StorageError('Memcache create session {}'.format(session_id))
+            raise StorageError("can't create memcache session {}".format(session_id))
 
         return session_id, 0, secure_id, self.get_lock(session_id)
 
@@ -110,7 +110,7 @@ class Sessions(common.Sessions):
           - ``session_id`` -- id of the session to delete
         """
         if self.memcache.delete((KEY_PREFIX + 'sess') % session_id, self.noreply):
-            raise StorageError('Memcache delete session {}'.format(session_id))
+            raise StorageError("can't delete memcache session {}".format(session_id))
 
     def _fetch(self, session_id, state_id):
         """Retrieve a state with its associated objects graph
@@ -129,14 +129,14 @@ class Sessions(common.Sessions):
         session = self.memcache.get_multi(('state', 'sess', state_id), KEY_PREFIX % session_id)
 
         if len(session) != 3:
-            raise ExpirationError()
+            raise ExpirationError('invalid session structure')
 
         last_state_id = session['state']
         version, secure_token, session_data = session['sess']
         state_data = session[state_id]
 
         if version != self.version:
-            raise ExpirationError()
+            raise ExpirationError('invalid session version')
 
         return last_state_id, secure_token, session_data, state_data
 
@@ -153,10 +153,10 @@ class Sessions(common.Sessions):
         """
         if not use_same_state:
             if self.memcache.incr((KEY_PREFIX + 'state') % session_id, noreply=self.noreply) is None:
-                raise StorageError('Memcache store session {}, state {}'.format(session_id, state_id))
+                raise StorageError("can't store memcache state in session {}, state {}".format(session_id, state_id))
 
         if self.memcache.set_multi({
             'sess': (self.version, secure_token, session_data),
             '%05d' % state_id: state_data
         }, self.ttl, KEY_PREFIX % session_id, self.min_compress_len, self.noreply):
-            raise StorageError('Memcache store session {}, state {}'.format(session_id, state_id))
+            raise StorageError("can't store memcache data in session {}, state {}".format(session_id, state_id))
