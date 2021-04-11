@@ -81,8 +81,7 @@ class Sessions(common.Sessions):
     def get_lock(self, session_id):
         return self.memcache.get_lock(
             session_id,
-            self.lock_ttl, self.lock_poll_time, self.lock_max_wait_time,
-            self.noreply
+            self.lock_ttl, self.lock_poll_time, self.lock_max_wait_time
         )
 
     def _create(self, session_id, secure_id):
