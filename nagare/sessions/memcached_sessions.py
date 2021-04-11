@@ -152,7 +152,7 @@ class Sessions(common.Sessions):
           - ``state_data`` -- data to keep into the state
         """
         if not use_same_state:
-            if self.memcache.incr((KEY_PREFIX + 'state') % session_id, noreply=self.noreply) is None:
+            if self.memcache.incr((KEY_PREFIX + 'state') % session_id, noreply=self.noreply) is None and not self.noreply:
                 raise StorageError("can't store memcache state in session {}, state {}".format(session_id, state_id))
 
         if self.memcache.set_multi({
