@@ -7,6 +7,8 @@
 # this distribution.
 # --
 
+from hashlib import md5
+
 from nagare.sessions import common
 from nagare.sessions.exceptions import StorageError, ExpirationError
 
@@ -25,6 +27,7 @@ class Sessions(common.Sessions):
         min_compress_len='integer(default=0)',
         noreply='boolean(default=False)',
         reset_on_reload='option(on, off, invalidate, flush, default="invalidate")',
+        version='string(default="")',
         serializer='string(default="nagare.sessions.serializer:Pickle")'
     )
 
@@ -34,8 +37,8 @@ class Sessions(common.Sessions):
             ttl=0,
             lock_ttl=0, lock_poll_time=0.1, lock_max_wait_time=5,
             min_compress_len=0, noreply=False,
-            reset_on_reload='invalidate',
-            serialize=None,
+            reset_on_reload='invalidate', version='',
+            serializer='nagare.sessions.serializer:Pickle',
             memcache_service=None, services_service=None,
             **config
     ):
@@ -54,8 +57,8 @@ class Sessions(common.Sessions):
             ttl=ttl,
             lock_ttl=lock_ttl, lock_poll_time=lock_poll_time, lock_max_wait_time=lock_max_wait_time,
             min_compress_len=min_compress_len, noreply=noreply,
-            reset_on_reload=reset_on_reload,
-            serialize=serialize,
+            reset_on_reload=reset_on_reload, version='',
+            serializer=serializer,
             **config
         )
 
@@ -68,19 +71,21 @@ class Sessions(common.Sessions):
         self.noreply = noreply
 
         self.reset_on_reload = 'invalidate' if reset_on_reload == 'on' else reset_on_reload
+        self.version = self._version = version
+
         self.handle_reload()
 
-    def generate_version_id(self):
-        return self.generate_id()
+    def generate_version(self):
+        return str(self.generate_id())
 
     def handle_reload(self):
         if self.reset_on_reload == 'invalidate':
-            self.version = self.generate_version_id()
-        else:
-            self.version = 0
+            self.version = md5((self._version or self.generate_version()).encode('utf-8')).hexdigest()[:16]
+            self.logger.info("Sessions version '{}'".format(self.version))
 
-            if self.reset_on_reload == 'flush':
-                self.memcache.flush_all()
+        if self.reset_on_reload == 'flush':
+            self.memcache.flush_all()
+            self.logger.info('Deleting all the sessions')
 
     def check_concurrence(self, multi_processes, multi_threads):
         pass
@@ -138,7 +143,7 @@ class Sessions(common.Sessions):
         session = self.memcache.get_multi(('state', 'sess', state_id), KEY_PREFIX % session_id)
 
         if len(session) != 3:
-            raise ExpirationError('invalid session structure')
+            raise ExpirationError('session not found')
 
         last_state_id = session['state']
         version, secure_token, session_data = session['sess']
