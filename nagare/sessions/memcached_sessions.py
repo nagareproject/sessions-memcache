@@ -1,5 +1,5 @@
 # --
-# Copyright (c) 2008-2021 Net-ng.
+# Copyright (c) 2008-2022 Net-ng.
 # All rights reserved.
 #
 # This software is licensed under the BSD License, as described in
@@ -57,7 +57,7 @@ class Sessions(common.Sessions):
             ttl=ttl,
             lock_ttl=lock_ttl, lock_poll_time=lock_poll_time, lock_max_wait_time=lock_max_wait_time,
             min_compress_len=min_compress_len, noreply=noreply,
-            reset_on_reload=reset_on_reload, version='',
+            reset_on_reload=reset_on_reload, version=version,
             serializer=serializer,
             **config
         )
