@@ -3,7 +3,6 @@
 *.orig
 *.rej
 *.egg-info
-dist
 *.db
 *.log
 *.mo
@@ -11,13 +10,14 @@ dist
 .project
 .pydevproject
 .pytest_cache
+.ruff_cache
 .settings
 .idea
 .coverage
 .eggs
 *.swp
-build
-dist
+/build
+/dist
 htmlcov
 nbproject
-
+/doc/_build

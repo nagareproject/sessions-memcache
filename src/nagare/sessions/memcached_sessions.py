@@ -1,5 +1,5 @@
 # --
-# Copyright (c) 2008-2022 Net-ng.
+# Copyright (c) 2008-2023 Net-ng.
 # All rights reserved.
 #
 # This software is licensed under the BSD License, as described in
@@ -10,14 +10,14 @@
 from hashlib import md5
 
 from nagare.sessions import common
-from nagare.sessions.exceptions import StorageError, ExpirationError
+from nagare.sessions.exceptions import ExpirationError, StorageError
 
 KEY_PREFIX = 'nagare_%d_'
 
 
 class Sessions(common.Sessions):
-    """Sessions manager for sessions kept in an external memcached server
-    """
+    """Sessions manager for sessions kept in an external memcached server."""
+
     CONFIG_SPEC = dict(
         common.Sessions.CONFIG_SPEC,
         ttl='integer(default=0)',
@@ -28,21 +28,27 @@ class Sessions(common.Sessions):
         noreply='boolean(default=False)',
         reset_on_reload='option(on, off, invalidate, flush, default="invalidate")',
         version='string(default="")',
-        serializer='string(default="nagare.sessions.serializer:Pickle")'
+        serializer='string(default="nagare.sessions.serializer:Pickle")',
     )
 
     def __init__(
-            self,
-            name, dist,
-            ttl=0,
-            lock_ttl=0, lock_poll_time=0.1, lock_max_wait_time=5,
-            min_compress_len=0, noreply=False,
-            reset_on_reload='invalidate', version='',
-            serializer='nagare.sessions.serializer:Pickle',
-            memcache_service=None, services_service=None,
-            **config
+        self,
+        name,
+        dist,
+        ttl=0,
+        lock_ttl=0,
+        lock_poll_time=0.1,
+        lock_max_wait_time=5,
+        min_compress_len=0,
+        noreply=False,
+        reset_on_reload='invalidate',
+        version='',
+        serializer='nagare.sessions.serializer:Pickle',
+        memcache_service=None,
+        services_service=None,
+        **config,
     ):
-        """Initialization
+        """Initialization.
 
         In:
           - ``ttl`` -- sessions and continuations timeout, in seconds (0 = no timeout)
@@ -53,13 +59,19 @@ class Sessions(common.Sessions):
           - ``serializer`` -- serializer / deserializer of the states
         """
         services_service(
-            super(Sessions, self).__init__, name, dist,
+            super(Sessions, self).__init__,
+            name,
+            dist,
             ttl=ttl,
-            lock_ttl=lock_ttl, lock_poll_time=lock_poll_time, lock_max_wait_time=lock_max_wait_time,
-            min_compress_len=min_compress_len, noreply=noreply,
-            reset_on_reload=reset_on_reload, version=version,
+            lock_ttl=lock_ttl,
+            lock_poll_time=lock_poll_time,
+            lock_max_wait_time=lock_max_wait_time,
+            min_compress_len=min_compress_len,
+            noreply=noreply,
+            reset_on_reload=reset_on_reload,
+            version=version,
             serializer=serializer,
-            **config
+            **config,
         )
 
         self.ttl = ttl
@@ -94,13 +106,10 @@ class Sessions(common.Sessions):
         return False
 
     def get_lock(self, session_id):
-        return self.memcache.get_lock(
-            session_id,
-            self.lock_ttl, self.lock_poll_time, self.lock_max_wait_time
-        )
+        return self.memcache.get_lock(session_id, self.lock_ttl, self.lock_poll_time, self.lock_max_wait_time)
 
     def _create(self, session_id, secure_id):
-        """Create a new session
+        """Create a new session.
 
         Return:
           - id of the session
@@ -108,17 +117,19 @@ class Sessions(common.Sessions):
           - secure token associated to the session
           - session lock
         """
-        if self.memcache.set_multi({
-            'state': 0,
-            'sess': (self.version, secure_id, None),
-            '00000': '',
-        }, self.ttl, KEY_PREFIX % session_id, self.min_compress_len, self.noreply):
+        if self.memcache.set_multi(
+            {'state': 0, 'sess': (self.version, secure_id, None), '00000': ''},
+            self.ttl,
+            KEY_PREFIX % session_id,
+            self.min_compress_len,
+            self.noreply,
+        ):
             raise StorageError("can't create memcache session {}".format(session_id))
 
         return session_id, 0, secure_id, self.get_lock(session_id)
 
     def delete(self, session_id):
-        """Delete a session
+        """Delete a session.
 
         In:
           - ``session_id`` -- id of the session to delete
@@ -127,7 +138,7 @@ class Sessions(common.Sessions):
             raise StorageError("can't delete memcache session {}".format(session_id))
 
     def _fetch(self, session_id, state_id):
-        """Retrieve a state with its associated objects graph
+        """Retrieve a state with its associated objects graph.
 
         In:
           - ``session_id`` -- session id of this state
@@ -155,7 +166,7 @@ class Sessions(common.Sessions):
         return last_state_id, secure_token, session_data, state_data
 
     def _store(self, session_id, state_id, secure_token, use_same_state, session_data, state_data):
-        """Store a state and its associated objects graph
+        """Store a state and its associated objects graph.
 
         In:
           - ``session_id`` -- session id of this state
@@ -165,12 +176,18 @@ class Sessions(common.Sessions):
           - ``session_data`` -- data to keep into the session
           - ``state_data`` -- data to keep into the state
         """
-        if not use_same_state:
-            if self.memcache.incr((KEY_PREFIX + 'state') % session_id, noreply=self.noreply) is None and not self.noreply:
-                raise StorageError("can't store memcache state in session {}, state {}".format(session_id, state_id))
+        if (
+            not use_same_state
+            and self.memcache.incr((KEY_PREFIX + 'state') % session_id, noreply=self.noreply) is None
+            and not self.noreply
+        ):
+            raise StorageError("can't store memcache state in session {}, state {}".format(session_id, state_id))
 
-        if self.memcache.set_multi({
-            'sess': (self.version, secure_token, session_data),
-            '%05d' % state_id: state_data
-        }, self.ttl, KEY_PREFIX % session_id, self.min_compress_len, self.noreply):
+        if self.memcache.set_multi(
+            {'sess': (self.version, secure_token, session_data), '%05d' % state_id: state_data},
+            self.ttl,
+            KEY_PREFIX % session_id,
+            self.min_compress_len,
+            self.noreply,
+        ):
             raise StorageError("can't store memcache data in session {}, state {}".format(session_id, state_id))
