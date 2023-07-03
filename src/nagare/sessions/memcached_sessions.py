@@ -24,7 +24,6 @@ class Sessions(common.Sessions):
         lock_ttl='float(default=0.)',
         lock_poll_time='float(default=0.1)',
         lock_max_wait_time='float(default=5.)',
-        min_compress_len='integer(default=0)',
         noreply='boolean(default=False)',
         reset_on_reload='option(on, off, invalidate, flush, default="invalidate")',
         version='string(default="")',
@@ -39,7 +38,6 @@ class Sessions(common.Sessions):
         lock_ttl=0,
         lock_poll_time=0.1,
         lock_max_wait_time=5,
-        min_compress_len=0,
         noreply=False,
         reset_on_reload='invalidate',
         version='',
@@ -55,7 +53,6 @@ class Sessions(common.Sessions):
           - ``lock_ttl`` -- session locks timeout, in seconds (0 = no timeout)
           - ``lock_poll_time`` -- wait time between two lock acquisition tries, in seconds
           - ``lock_max_wait_time`` -- maximum time to wait to acquire the lock, in seconds
-          - ``min_compress_len`` -- data longer than this value are sent compressed
           - ``serializer`` -- serializer / deserializer of the states
         """
         services_service(
@@ -66,7 +63,6 @@ class Sessions(common.Sessions):
             lock_ttl=lock_ttl,
             lock_poll_time=lock_poll_time,
             lock_max_wait_time=lock_max_wait_time,
-            min_compress_len=min_compress_len,
             noreply=noreply,
             reset_on_reload=reset_on_reload,
             version=version,
@@ -79,7 +75,6 @@ class Sessions(common.Sessions):
         self.lock_poll_time = lock_poll_time
         self.lock_max_wait_time = lock_max_wait_time
         self.memcache = memcache_service
-        self.min_compress_len = min_compress_len
         self.noreply = noreply
 
         self.reset_on_reload = 'invalidate' if reset_on_reload == 'on' else reset_on_reload
@@ -121,8 +116,7 @@ class Sessions(common.Sessions):
             {'state': 0, 'sess': (self.version, secure_id, None), '00000': ''},
             self.ttl,
             KEY_PREFIX % session_id,
-            self.min_compress_len,
-            self.noreply,
+            noreply=self.noreply,
         ):
             raise StorageError("can't create memcache session {}".format(session_id))
 
@@ -187,7 +181,6 @@ class Sessions(common.Sessions):
             {'sess': (self.version, secure_token, session_data), '%05d' % state_id: state_data},
             self.ttl,
             KEY_PREFIX % session_id,
-            self.min_compress_len,
-            self.noreply,
+            noreply=self.noreply,
         ):
             raise StorageError("can't store memcache data in session {}, state {}".format(session_id, state_id))
