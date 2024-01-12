@@ -10,7 +10,7 @@
 from hashlib import md5
 
 from nagare.sessions import common
-from nagare.sessions.exceptions import ExpirationError, StorageError
+from nagare.sessions.exceptions import StorageError, ExpirationError
 
 KEY_PREFIX = 'nagare_%d_'
 
@@ -128,8 +128,8 @@ class Sessions(common.Sessions):
         In:
           - ``session_id`` -- id of the session to delete
         """
-        if self.memcache.delete((KEY_PREFIX + 'sess') % session_id, self.noreply):
-            raise StorageError("can't delete memcache session {}".format(session_id))
+        if self.memcache.delete((KEY_PREFIX + 'sess') % session_id, self.noreply) == 0:
+            self.logger.error("can't delete memcache session {}".format(session_id))
 
     def _fetch(self, session_id, state_id):
         """Retrieve a state with its associated objects graph.
