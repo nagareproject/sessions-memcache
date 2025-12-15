@@ -1,5 +1,5 @@
 # --
-# Copyright (c) 2008-2024 Net-ng.
+# Copyright (c) 2014-2025 Net-ng.
 # All rights reserved.
 #
 # This software is licensed under the BSD License, as described in
@@ -18,17 +18,16 @@ KEY_PREFIX = 'nagare_%d_'
 class Sessions(common.Sessions):
     """Sessions manager for sessions kept in an external memcached server."""
 
-    CONFIG_SPEC = dict(
-        common.Sessions.CONFIG_SPEC,
-        ttl='integer(default=0)',
-        lock_ttl='float(default=0.)',
-        lock_poll_time='float(default=0.1)',
-        lock_max_wait_time='float(default=5.)',
-        noreply='boolean(default=False)',
-        reset_on_reload='option(on, off, invalidate, flush, default="invalidate")',
-        version='string(default="")',
-        serializer='string(default="nagare.sessions.serializer:Pickle")',
-    )
+    CONFIG_SPEC = common.Sessions.CONFIG_SPEC | {
+        'ttl': 'integer(default=0)',
+        'lock_ttl': 'float(default=0.)',
+        'lock_poll_time': 'float(default=0.1)',
+        'lock_max_wait_time': 'float(default=5.)',
+        'noreply': 'boolean(default=False)',
+        'reset_on_reload': 'option(on, off, invalidate, flush, default="invalidate")',
+        'version': 'string(default="")',
+        'serializer': 'string(default="nagare.sessions.serializer:Pickle")',
+    }
 
     def __init__(
         self,
@@ -56,7 +55,7 @@ class Sessions(common.Sessions):
           - ``serializer`` -- serializer / deserializer of the states
         """
         services_service(
-            super(Sessions, self).__init__,
+            super().__init__,
             name,
             dist,
             ttl=ttl,
@@ -88,7 +87,7 @@ class Sessions(common.Sessions):
     def handle_reload(self):
         if self.reset_on_reload == 'invalidate':
             self.version = md5((self._version or self.generate_version()).encode('utf-8')).hexdigest()[:16]
-            self.logger.info("Sessions version '{}'".format(self.version))
+            self.logger.info("Sessions version '%s'", self.version)
 
         if self.reset_on_reload == 'flush':
             self.memcache.flush_all()
